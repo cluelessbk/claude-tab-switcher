@@ -38,8 +38,15 @@ When Claude wants to switch tabs, it fires a JavaScript event on the page. This 
 
 Once installed, Claude can:
 
-- **Switch to any tab** — just tell Claude which tab you want to switch to
-- **List all open tabs** — Claude can see your tab titles and URLs to find the right one
+1. **Switch to any tab** — tell Claude which tab you want and it switches instantly
+2. **List all open tabs** — Claude can see all tab titles, URLs, and IDs across all windows
+3. **Open a new tab** — with or without a URL
+4. **Close a tab** — by name or description
+5. **Reload a tab** — without you touching the keyboard
+6. **Focus a window** — bring a different browser window to the front
+7. **Move a tab to another window** — reorganize tabs between windows
+8. **Pin / unpin a tab** — toggle the pinned state of any tab
+9. **Auto-inject** — the extension automatically injects itself into all existing tabs on install and browser startup, so Claude can always switch tabs without asking you to refresh first
 
 No setup needed beyond installation — it works automatically alongside Claude in Chrome.
 
