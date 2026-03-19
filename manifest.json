@@ -1,14 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Claude Tab Switcher",
-  "version": "3.0.0",
-  "description": "Comprehensive browser control for Claude: tabs, windows, bookmarks, downloads, content reading, CSS injection, and more.",
-  "permissions": ["tabs", "scripting", "windows", "tabGroups", "bookmarks", "downloads", "contentSettings"],
+  "version": "4.0.0",
+  "description": "Comprehensive, security-hardened browser control for Claude.",
+  "permissions": ["tabs", "scripting", "windows", "tabGroups", "bookmarks", "downloads", "contentSettings", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["popup_blocker.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
