@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Claude Tab Switcher",
-  "version": "1.0.0",
-  "description": "Lets Claude (via Claude in Chrome) switch between browser tabs.",
-  "permissions": ["tabs"],
+  "version": "2.0.0",
+  "description": "Lets Claude (via Claude in Chrome) switch tabs, open/close tabs, reload, pin, move, and focus windows.",
+  "permissions": ["tabs", "scripting", "windows"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
@@ -13,4 +14,5 @@
       "js": ["content.js"],
       "run_at": "document_idle"
     }
-  ]}
+  ]
+}
