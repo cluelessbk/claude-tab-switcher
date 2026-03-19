@@ -45,6 +45,14 @@ No setup needed beyond installation — it works automatically alongside Claude 
 
 ---
 
+## Important: Refresh your tabs after installing
+
+The content script is only injected into tabs that are opened or refreshed **after** the extension is installed. Tabs that were already open won't have it.
+
+**After installing, refresh any tab you want Claude to be able to switch from.** Claude always fires the switch command from the current active tab, so that tab needs the content script loaded.
+
+---
+
 ## Notes
 
 - The extension only requires the `tabs` permission (to read tab info and switch between them)
