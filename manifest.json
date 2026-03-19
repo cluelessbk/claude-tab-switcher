@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Claude Tab Switcher",
-  "version": "2.0.0",
-  "description": "Lets Claude (via Claude in Chrome) switch tabs, open/close tabs, reload, pin, move, and focus windows.",
-  "permissions": ["tabs", "scripting", "windows"],
+  "version": "3.0.0",
+  "description": "Comprehensive browser control for Claude: tabs, windows, bookmarks, downloads, content reading, CSS injection, and more.",
+  "permissions": ["tabs", "scripting", "windows", "tabGroups", "bookmarks", "downloads", "contentSettings"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

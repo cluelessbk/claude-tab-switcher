@@ -1,14 +1,14 @@
 # Claude Tab Switcher
 
-A companion Chrome extension for [Claude in Chrome](https://claude.ai) that lets Claude switch between your browser tabs.
+A companion Chrome extension for [Claude in Chrome](https://claude.ai) that gives Claude comprehensive control over your browser.
 
-By default, Claude can only interact with the content *inside* a tab — it can't switch between tabs. This extension bridges that gap.
+By default, Claude can only interact with content *inside* a single tab. This extension bridges that gap — giving Claude awareness of and control over all tabs, windows, bookmarks, downloads, and more.
 
 ---
 
 ## How it works
 
-When Claude wants to switch tabs, it fires a JavaScript event on the page. This extension's content script catches that event and passes it to a background worker, which has the permissions needed to actually switch the active tab.
+Claude fires JavaScript `CustomEvent`s on the page. This extension's content script catches them and forwards them to a background service worker, which has the permissions needed to act on them (switch tabs, read content, download files, etc.), then fires a response event back.
 
 ---
 
@@ -17,7 +17,7 @@ When Claude wants to switch tabs, it fires a JavaScript event on the page. This 
 > **Requires Chrome** (or any Chromium-based browser: Edge, Brave, Arc, etc.)
 
 1. **Download this extension**
-   - Click the green **Code** button on this GitHub page → **Download ZIP**
+   - Click the green **Code** button → **Download ZIP**
    - Unzip the folder somewhere on your computer (e.g. your Desktop)
 
 2. **Open Chrome Extensions**
@@ -30,38 +30,72 @@ When Claude wants to switch tabs, it fires a JavaScript event on the page. This 
    - Click **Load unpacked**
    - Select the `claude-tab-switcher` folder you unzipped
 
-5. **Done!** You should see "Claude Tab Switcher" appear in your extensions list.
+5. **Done!** The extension auto-injects itself into all open tabs immediately — no need to refresh anything.
 
 ---
 
-## Usage
+## Features
 
-Once installed, Claude can:
-
-1. **Switch to any tab** — tell Claude which tab you want and it switches instantly
-2. **List all open tabs** — Claude can see all tab titles, URLs, and IDs across all windows
+### Tab control
+1. **Switch to any tab** — by tab ID or name
+2. **List all open tabs** — titles, URLs, IDs, pinned/muted state, group, window
 3. **Open a new tab** — with or without a URL
-4. **Close a tab** — by name or description
-5. **Reload a tab** — without you touching the keyboard
-6. **Focus a window** — bring a different browser window to the front
-7. **Move a tab to another window** — reorganize tabs between windows
-8. **Pin / unpin a tab** — toggle the pinned state of any tab
-9. **Auto-inject** — the extension automatically injects itself into all existing tabs on install and browser startup, so Claude can always switch tabs without asking you to refresh first
+4. **Close a tab**
+5. **Reload a tab**
+6. **Pin / unpin a tab**
+7. **Mute / unmute a tab**
 
-No setup needed beyond installation — it works automatically alongside Claude in Chrome.
+### Window control
+8. **Focus a window** — bring a browser window to the front
+9. **Create a new window** — with or without a URL
+10. **Move a tab to another window**
+
+### Tab groups
+11. **Create a tab group** — group tabs with a name and color (grey/blue/red/yellow/green/pink/purple/cyan/orange)
+12. **List all tab groups**
+13. **Rename or recolor a group**
+14. **Remove tabs from a group**
+
+### Content reading
+15. **Read any tab's content without switching to it** — get full text, HTML, or title from background tabs
+
+### Scroll
+16. **Get scroll position** of any tab
+17. **Scroll any tab** to a position (without switching to it)
+
+### CSS injection
+18. **Inject custom CSS** into any tab — hide ads, change layout, dark mode, etc.
+19. **Remove injected CSS**
+
+### Bookmarks
+20. **Get all bookmarks**
+21. **Search bookmarks**
+22. **Add a bookmark**
+23. **Remove a bookmark**
+
+### Downloads & file safety
+24. **Check if a file is safe** before downloading — validates HTTPS, checks extension against known safe/dangerous lists
+25. **Download a file** — with automatic safety check built in (blocks dangerous executables by default)
+
+### Popups & dialogs
+26. **Block notification popups** for any site — prevents the "wants to show notifications" prompt from ever appearing
+27. **Allow notifications** for a site
+28. **Suppress JS dialogs** (alert / confirm / prompt) in any tab
+
+### Misc
+29. **Set extension badge** — display a text label on the extension icon
 
 ---
 
-## Important: Refresh your tabs after installing
+## Important: Tabs refresh automatically
 
-The content script is only injected into tabs that are opened or refreshed **after** the extension is installed. Tabs that were already open won't have it.
-
-**After installing, refresh any tab you want Claude to be able to switch from.** Claude always fires the switch command from the current active tab, so that tab needs the content script loaded.
+The extension auto-injects into all open tabs on install and on every browser startup. You don't need to refresh tabs manually.
 
 ---
 
 ## Notes
 
-- The extension only requires the `tabs` permission (to read tab info and switch between them)
-- It does **not** collect or transmit any data
-- If Chrome shows a warning about Developer Mode extensions on startup, just dismiss it — this is normal for unpacked extensions
+- Permissions used: `tabs`, `scripting`, `windows`, `tabGroups`, `bookmarks`, `downloads`, `contentSettings`
+- Does **not** collect or transmit any data
+- File safety check is local — it checks HTTPS and file extension. For deep malware scanning, an external service (e.g. VirusTotal API) would be needed
+- If Chrome shows a Developer Mode warning on startup, just dismiss it — normal for unpacked extensions
