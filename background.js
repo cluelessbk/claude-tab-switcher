@@ -27,6 +27,17 @@ function isSensitiveDomain(url) {
   }
 }
 
+// Auto-focus a tab and its window before performing visible actions
+// This ensures the user always sees what Claude is doing
+async function autoFocus(tabId) {
+  return new Promise((resolve) => {
+    chrome.tabs.update(tabId, { active: true }, (tab) => {
+      if (!tab) { resolve(); return; }
+      chrome.windows.update(tab.windowId, { focused: true }, resolve);
+    });
+  });
+}
+
 async function hasPasswordFields(tabId) {
   try {
     const results = await chrome.scripting.executeScript({
@@ -155,9 +166,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 5. Reload a tab
+  // 5. Reload a tab (auto-focuses so user can see)
   if (action === 'reloadTab') {
-    chrome.tabs.reload(message.tabId, {}, () => sendResponse({ success: true }));
+    (async () => {
+      await autoFocus(message.tabId);
+      chrome.tabs.reload(message.tabId, {}, () => sendResponse({ success: true }));
+    })();
     return true;
   }
 
@@ -191,8 +205,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 10. Read content from any tab without switching
+  // 10. Read content from any tab (auto-focuses so user can see)
   if (action === 'readTabContent') {
+    (async () => {
+      await autoFocus(message.tabId);
+    })();
     const type = message.contentType || 'all';
     chrome.scripting.executeScript({
       target: { tabId: message.tabId },
@@ -291,8 +308,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 21. Scroll any tab
+  // 21. Scroll any tab (auto-focuses so user can see)
   if (action === 'scrollTab') {
+    (async () => {
+      await autoFocus(message.tabId);
+    })();
     if (message.get) {
       chrome.scripting.executeScript({
         target: { tabId: message.tabId },
@@ -310,13 +330,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 22. Inject CSS (blocked on sensitive domains)
+  // 22. Inject CSS (blocked on sensitive domains; auto-focuses so user can see)
   if (action === 'injectCSS') {
-    chrome.tabs.get(message.tabId, (tab) => {
+    chrome.tabs.get(message.tabId, async (tab) => {
       if (isSensitiveDomain(tab.url)) {
         sendResponse({ success: false, blocked: true, error: 'Security: CSS injection blocked on sensitive domain.' });
         return;
       }
+      await autoFocus(message.tabId);
       chrome.scripting.insertCSS({ target: { tabId: message.tabId }, css: message.css })
         .then(() => { logAction('injectCSS', tab.url); sendResponse({ success: true }); })
         .catch(e => sendResponse({ success: false, error: e.message }));
@@ -324,11 +345,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 23. Remove CSS
+  // 23. Remove CSS (auto-focuses so user can see)
   if (action === 'removeCSS') {
-    chrome.scripting.removeCSS({ target: { tabId: message.tabId }, css: message.css })
-      .then(() => sendResponse({ success: true }))
-      .catch(e => sendResponse({ success: false, error: e.message }));
+    (async () => {
+      await autoFocus(message.tabId);
+      chrome.scripting.removeCSS({ target: { tabId: message.tabId }, css: message.css })
+        .then(() => sendResponse({ success: true }))
+        .catch(e => sendResponse({ success: false, error: e.message }));
+    })();
     return true;
   }
 
@@ -377,8 +401,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 29. Suppress JS dialogs in a tab
+  // 29. Suppress JS dialogs in a tab (auto-focuses so user can see)
   if (action === 'suppressDialogs') {
+    (async () => { await autoFocus(message.tabId); })();
     chrome.scripting.executeScript({
       target: { tabId: message.tabId },
       func: () => {
@@ -448,12 +473,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 33. Navigate a tab to a new URL (without switching to it)
+  // 33. Navigate a tab to a new URL (auto-focuses so user can see)
   if (action === 'navigateTab') {
-    logAction('navigateTab', message.url);
-    chrome.tabs.update(message.tabId, { url: message.url }, (tab) => {
-      sendResponse({ success: true, tabId: tab.id });
-    });
+    (async () => {
+      await autoFocus(message.tabId);
+      logAction('navigateTab', message.url);
+      chrome.tabs.update(message.tabId, { url: message.url }, (tab) => {
+        sendResponse({ success: true, tabId: tab.id });
+      });
+    })();
     return true;
   }
 
@@ -473,13 +501,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 36. Screenshot active tab → download as PNG (blocked on sensitive domains)
+  // 36. Screenshot active tab → download as PNG (blocked on sensitive domains; auto-focuses)
   if (action === 'screenshotTab') {
-    chrome.tabs.get(message.tabId, (tab) => {
+    chrome.tabs.get(message.tabId, async (tab) => {
       if (isSensitiveDomain(tab.url)) {
         sendResponse({ success: false, blocked: true, error: 'Security: screenshots blocked on sensitive domains.' });
         return;
       }
+      await autoFocus(message.tabId);
       chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataUrl) => {
         const filename = message.filename || `screenshot-${Date.now()}.png`;
         chrome.downloads.download({ url: dataUrl, filename }, (downloadId) => {
@@ -491,11 +520,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 37. Zoom a tab
+  // 37. Zoom a tab (auto-focuses so user can see)
   if (action === 'zoomTab') {
-    chrome.tabs.setZoom(message.tabId, message.zoom, () => {
-      sendResponse({ success: true, zoom: message.zoom });
-    });
+    (async () => {
+      await autoFocus(message.tabId);
+      chrome.tabs.setZoom(message.tabId, message.zoom, () => {
+        sendResponse({ success: true, zoom: message.zoom });
+      });
+    })();
     return true;
   }
 
