@@ -125,6 +125,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const action = message.action;
 
+  // Always focus the sender's window so the user can see Claude working
+  if (sender.tab?.windowId) {
+    chrome.windows.update(sender.tab.windowId, { focused: true });
+  }
+
   // 1. Switch to a tab (also focuses its window)
   if (action === 'switchTab') {
     chrome.tabs.update(message.tabId, { active: true }, (tab) => {
