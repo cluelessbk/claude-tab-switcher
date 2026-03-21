@@ -21,7 +21,7 @@ if (window.__claudeTabSwitcherLoaded) {
   // ── Tab control ────────────────────────────────────────────────────────────
   on('claude-switch-tab',    'switchTab',    d => ({ tabId: d.tabId }),                         'claude-switch-tab-response');
   on('claude-get-tabs',      'getTabs',      null,                                               'claude-get-tabs-response');
-  on('claude-open-tab',      'openTab',      d => ({ url: d?.url }),                            'claude-open-tab-response');
+  on('claude-open-tab',      'openTab',      d => ({ url: d?.url, windowId: d?.windowId }),     'claude-open-tab-response');
   on('claude-close-tab',     'closeTab',     d => ({ tabId: d.tabId }),                         'claude-close-tab-response');
   on('claude-reload-tab',    'reloadTab',    d => ({ tabId: d.tabId }),                         'claude-reload-tab-response');
   on('claude-pin-tab',       'pinTab',       d => ({ tabId: d.tabId, pinned: d.pinned }),       'claude-pin-tab-response');

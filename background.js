@@ -125,11 +125,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const action = message.action;
 
-  // Always focus the sender's window so the user can see Claude working
-  if (sender.tab?.windowId) {
-    chrome.windows.update(sender.tab.windowId, { focused: true });
-  }
-
   // 1. Switch to a tab (also focuses its window)
   if (action === 'switchTab') {
     chrome.tabs.update(message.tabId, { active: true }, (tab) => {
@@ -155,7 +150,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // 3. Open a new tab
   if (action === 'openTab') {
-    chrome.tabs.create({ url: message.url || undefined }, (tab) => {
+    chrome.tabs.create({ url: message.url || undefined, windowId: message.windowId || undefined }, (tab) => {
       logAction('openTab', message.url);
       sendResponse({ success: true, tabId: tab.id });
     });
@@ -171,12 +166,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 5. Reload a tab (auto-focuses so user can see)
+  // 5. Reload a tab — blocked if tab is not active
   if (action === 'reloadTab') {
-    (async () => {
-      await autoFocus(message.tabId);
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: reloadTab blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
       chrome.tabs.reload(message.tabId, {}, () => sendResponse({ success: true }));
-    })();
+    });
     return true;
   }
 
@@ -210,23 +208,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 10. Read content from any tab (auto-focuses so user can see)
+  // 10. Read content from a tab — blocked if tab is not active
   if (action === 'readTabContent') {
-    (async () => {
-      await autoFocus(message.tabId);
-    })();
-    const type = message.contentType || 'all';
-    chrome.scripting.executeScript({
-      target: { tabId: message.tabId },
-      func: (type) => {
-        if (type === 'html')  return document.documentElement.outerHTML;
-        if (type === 'text')  return document.body.innerText;
-        if (type === 'title') return document.title;
-        return { title: document.title, url: location.href, text: document.body.innerText };
-      },
-      args: [type]
-    }).then(r => sendResponse({ success: true, content: r[0].result }))
-      .catch(e => sendResponse({ success: false, error: e.message }));
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: readTabContent blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
+      const type = message.contentType || 'all';
+      chrome.scripting.executeScript({
+        target: { tabId: message.tabId },
+        func: (type) => {
+          if (type === 'html')  return document.documentElement.outerHTML;
+          if (type === 'text')  return document.body.innerText;
+          if (type === 'title') return document.title;
+          return { title: document.title, url: location.href, text: document.body.innerText };
+        },
+        args: [type]
+      }).then(r => sendResponse({ success: true, content: r[0].result }))
+        .catch(e => sendResponse({ success: false, error: e.message }));
+    });
     return true;
   }
 
@@ -313,36 +314,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 21. Scroll any tab (auto-focuses so user can see)
+  // 21. Scroll a tab — blocked if tab is not active
   if (action === 'scrollTab') {
-    (async () => {
-      await autoFocus(message.tabId);
-    })();
-    if (message.get) {
-      chrome.scripting.executeScript({
-        target: { tabId: message.tabId },
-        func: () => ({ x: window.scrollX, y: window.scrollY, maxX: document.body.scrollWidth, maxY: document.body.scrollHeight })
-      }).then(r => sendResponse({ success: true, scroll: r[0].result }))
-        .catch(e => sendResponse({ success: false, error: e.message }));
-    } else {
-      chrome.scripting.executeScript({
-        target: { tabId: message.tabId },
-        func: (x, y, behavior) => window.scrollTo({ left: x, top: y, behavior }),
-        args: [message.x ?? 0, message.y ?? 0, message.behavior || 'smooth']
-      }).then(() => sendResponse({ success: true }))
-        .catch(e => sendResponse({ success: false, error: e.message }));
-    }
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: scrollTab blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
+      if (message.get) {
+        chrome.scripting.executeScript({
+          target: { tabId: message.tabId },
+          func: () => ({ x: window.scrollX, y: window.scrollY, maxX: document.body.scrollWidth, maxY: document.body.scrollHeight })
+        }).then(r => sendResponse({ success: true, scroll: r[0].result }))
+          .catch(e => sendResponse({ success: false, error: e.message }));
+      } else {
+        chrome.scripting.executeScript({
+          target: { tabId: message.tabId },
+          func: (x, y, behavior) => window.scrollTo({ left: x, top: y, behavior }),
+          args: [message.x ?? 0, message.y ?? 0, message.behavior || 'smooth']
+        }).then(() => sendResponse({ success: true }))
+          .catch(e => sendResponse({ success: false, error: e.message }));
+      }
+    });
     return true;
   }
 
-  // 22. Inject CSS (blocked on sensitive domains; auto-focuses so user can see)
+  // 22. Inject CSS — blocked on sensitive domains and inactive tabs
   if (action === 'injectCSS') {
-    chrome.tabs.get(message.tabId, async (tab) => {
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: injectCSS blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
       if (isSensitiveDomain(tab.url)) {
         sendResponse({ success: false, blocked: true, error: 'Security: CSS injection blocked on sensitive domain.' });
         return;
       }
-      await autoFocus(message.tabId);
       chrome.scripting.insertCSS({ target: { tabId: message.tabId }, css: message.css })
         .then(() => { logAction('injectCSS', tab.url); sendResponse({ success: true }); })
         .catch(e => sendResponse({ success: false, error: e.message }));
@@ -350,14 +357,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 23. Remove CSS (auto-focuses so user can see)
+  // 23. Remove CSS — blocked if tab is not active
   if (action === 'removeCSS') {
-    (async () => {
-      await autoFocus(message.tabId);
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: removeCSS blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
       chrome.scripting.removeCSS({ target: { tabId: message.tabId }, css: message.css })
         .then(() => sendResponse({ success: true }))
         .catch(e => sendResponse({ success: false, error: e.message }));
-    })();
+    });
     return true;
   }
 
@@ -406,9 +416,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 29. Suppress JS dialogs in a tab (auto-focuses so user can see)
+  // 29. Suppress JS dialogs in a tab — blocked if tab is not active
   if (action === 'suppressDialogs') {
-    (async () => { await autoFocus(message.tabId); })();
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: suppressDialogs blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
+    });
     chrome.scripting.executeScript({
       target: { tabId: message.tabId },
       func: () => {
@@ -478,15 +493,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 33. Navigate a tab to a new URL (auto-focuses so user can see)
+  // 33. Navigate a tab to a new URL — blocked if tab is not active
   if (action === 'navigateTab') {
-    (async () => {
-      await autoFocus(message.tabId);
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: navigateTab blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
       logAction('navigateTab', message.url);
       chrome.tabs.update(message.tabId, { url: message.url }, (tab) => {
         sendResponse({ success: true, tabId: tab.id });
       });
-    })();
+    });
     return true;
   }
 
@@ -506,14 +524,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 36. Screenshot active tab → download as PNG (blocked on sensitive domains; auto-focuses)
+  // 36. Screenshot tab — blocked on sensitive domains and inactive tabs
   if (action === 'screenshotTab') {
-    chrome.tabs.get(message.tabId, async (tab) => {
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: screenshotTab blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
       if (isSensitiveDomain(tab.url)) {
         sendResponse({ success: false, blocked: true, error: 'Security: screenshots blocked on sensitive domains.' });
         return;
       }
-      await autoFocus(message.tabId);
       chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (dataUrl) => {
         const filename = message.filename || `screenshot-${Date.now()}.png`;
         chrome.downloads.download({ url: dataUrl, filename }, (downloadId) => {
@@ -525,14 +546,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 37. Zoom a tab (auto-focuses so user can see)
+  // 37. Zoom a tab — blocked if tab is not active
   if (action === 'zoomTab') {
-    (async () => {
-      await autoFocus(message.tabId);
+    chrome.tabs.get(message.tabId, (tab) => {
+      if (!tab.active) {
+        sendResponse({ success: false, error: 'Security: zoomTab blocked — tab is not active. Call switchTab first.' });
+        return;
+      }
       chrome.tabs.setZoom(message.tabId, message.zoom, () => {
         sendResponse({ success: true, zoom: message.zoom });
       });
-    })();
+    });
     return true;
   }
 

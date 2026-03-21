@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Claude Tab Switcher",
-  "version": "4.0.0",
+  "version": "4.3.0",
   "description": "Comprehensive, security-hardened browser control for Claude.",
   "permissions": ["tabs", "scripting", "windows", "tabGroups", "bookmarks", "downloads", "contentSettings", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],

@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.3.0
+- Removed auto-focus of sender's window on every message — relay tab no longer jumps to front when dispatching commands
+- Added active-tab hardstop to all content actions (reloadTab, readTabContent, scrollTab, injectCSS, removeCSS, suppressDialogs, navigateTab, screenshotTab, zoomTab) — blocks execution if target tab is not active
+- openTab now supports windowId parameter — tabs open in the correct window instead of defaulting to the wrong one
+
 ## v4.2.0
 - Auto-focus sender's window on every extension event — Claude's working window always comes to front
 
